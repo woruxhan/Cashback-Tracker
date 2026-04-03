@@ -6,7 +6,7 @@
 <title>回饋帳本</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Tracker">
+<meta name="apple-mobile-web-app-title" content="回饋帳本">
 <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgcng9IjQ0IiBmaWxsPSIjZmRmYWY0Ii8+CiAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI3MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZThlMGQ0IiBzdHJva2Utd2lkdGg9IjIwIi8+CiAgPHBhdGggZD0iTTEwMCwyOCBBNzIsNzIgMCAxLDEgMjgsMTAwIiBmaWxsPSJub25lIiBzdHJva2U9IiNjODRiMmYiIHN0cm9rZS13aWR0aD0iMjAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxjaXJjbGUgY3g9IjM4IiBjeT0iNTAiIHI9IjIyIiBmaWxsPSIjYzg0YjJmIi8+CiAgPHRleHQgeD0iMzgiIHk9IjUwIiBmb250LWZhbWlseT0iR2VvcmdpYSxzZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZkZmFmNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiPiQ8L3RleHQ+CiAgPHRleHQgeD0iMTAwIiB5PSIxMDgiIGZvbnQtZmFtaWx5PSJBcmlhbCBSb3VuZGVkIE1UIEJvbGQsSGVsdmV0aWNhIE5ldWUsc2Fucy1zZXJpZiIgZm9udC1zaXplPSI3MiIgZmlsbD0iIzFhMTQxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZm9udC13ZWlnaHQ9IjcwMCI+UjwvdGV4dD4KPC9zdmc+">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj4KICA8cmVjdCB4PSIwIiB5PSIwIiB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgcng9IjQ0IiBmaWxsPSIjZmRmYWY0Ii8+CiAgPGNpcmNsZSBjeD0iMTAwIiBjeT0iMTAwIiByPSI3MiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjZThlMGQ0IiBzdHJva2Utd2lkdGg9IjIwIi8+CiAgPHBhdGggZD0iTTEwMCwyOCBBNzIsNzIgMCAxLDEgMjgsMTAwIiBmaWxsPSJub25lIiBzdHJva2U9IiNjODRiMmYiIHN0cm9rZS13aWR0aD0iMjAiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxjaXJjbGUgY3g9IjM4IiBjeT0iNTAiIHI9IjIyIiBmaWxsPSIjYzg0YjJmIi8+CiAgPHRleHQgeD0iMzgiIHk9IjUwIiBmb250LWZhbWlseT0iR2VvcmdpYSxzZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iI2ZkZmFmNCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZm9udC13ZWlnaHQ9ImJvbGQiPiQ8L3RleHQ+CiAgPHRleHQgeD0iMTAwIiB5PSIxMDgiIGZvbnQtZmFtaWx5PSJBcmlhbCBSb3VuZGVkIE1UIEJvbGQsSGVsdmV0aWNhIE5ldWUsc2Fucy1zZXJpZiIgZm9udC1zaXplPSI3MiIgZmlsbD0iIzFhMTQxMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSIgZm9udC13ZWlnaHQ9IjcwMCI+UjwvdGV4dD4KPC9zdmc+">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -780,49 +780,73 @@ render();
 // Refresh period countdown every minute
 setInterval(updatePeriod, 60000);
 
-/* ── Generate Apple Touch Icon ── */
+/* ── Generate Apple Touch Icon via Canvas ── */
 (function generateIcon() {
-  const SIZE = 180;
+  const SIZE = 512;
   const c = document.createElement('canvas');
   c.width = c.height = SIZE;
   const ctx = c.getContext('2d');
+  const cx = SIZE / 2, cy = SIZE / 2;
 
-  // Background
-  ctx.fillStyle = '#f5f0e8';
-  ctx.fillRect(0, 0, SIZE, SIZE);
-
-  // Subtle warm gradient overlay
-  const grad = ctx.createRadialGradient(SIZE*0.7, SIZE*0.2, 0, SIZE*0.5, SIZE*0.5, SIZE*0.8);
-  grad.addColorStop(0, 'rgba(200,75,47,0.08)');
-  grad.addColorStop(1, 'rgba(200,75,47,0)');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, SIZE, SIZE);
-
-  // Ring background
-  const cx = SIZE / 2, cy = SIZE / 2 + 4;
-  const R = 64, SW = 10;
+  // Rounded rect background
+  const r = SIZE * 0.22;
   ctx.beginPath();
-  ctx.arc(cx, cy, R, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(26,20,16,0.10)';
-  ctx.lineWidth = SW;
+  ctx.moveTo(r, 0);
+  ctx.lineTo(SIZE - r, 0);
+  ctx.quadraticCurveTo(SIZE, 0, SIZE, r);
+  ctx.lineTo(SIZE, SIZE - r);
+  ctx.quadraticCurveTo(SIZE, SIZE, SIZE - r, SIZE);
+  ctx.lineTo(r, SIZE);
+  ctx.quadraticCurveTo(0, SIZE, 0, SIZE - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#fdfaf4';
+  ctx.fill();
+
+  // Ring background track
+  const ringR = SIZE * 0.36, sw = SIZE * 0.10;
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringR, 0, Math.PI * 2);
+  ctx.strokeStyle = '#e8e0d4';
+  ctx.lineWidth = sw;
   ctx.stroke();
 
-  // Ring arc (~70% filled as decorative)
+  // Ring arc (270deg, gap top-left)
   ctx.beginPath();
-  ctx.arc(cx, cy, R, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * 0.72);
+  ctx.arc(cx, cy, ringR, -Math.PI / 2, Math.PI, false);
   ctx.strokeStyle = '#c84b2f';
-  ctx.lineWidth = SW;
+  ctx.lineWidth = sw;
   ctx.lineCap = 'round';
   ctx.stroke();
 
-  // Center character
-  ctx.fillStyle = '#1a1410';
-  ctx.font = 'bold 52px serif';
+  // Coin circle at gap end (top-left)
+  const coinAngle = Math.PI;
+  const coinX = cx + Math.cos(coinAngle) * ringR;
+  const coinY = cy + Math.sin(coinAngle) * ringR;
+  const coinR = SIZE * 0.11;
+  ctx.beginPath();
+  ctx.arc(coinX, coinY, coinR, 0, Math.PI * 2);
+  ctx.fillStyle = '#c84b2f';
+  ctx.fill();
+
+  // $ centred in coin
+  ctx.fillStyle = '#fdfaf4';
+  ctx.font = `bold ${Math.round(SIZE * 0.09)}px Georgia, serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('帳', cx, cy + 1);
+  ctx.fillText('$', coinX, coinY);
 
-  document.getElementById('apple-touch-icon').href = c.toDataURL('image/png');
+  // R centred in ring
+  ctx.fillStyle = '#1a1410';
+  ctx.font = `700 ${Math.round(SIZE * 0.38)}px "Arial Rounded MT Bold", "Helvetica Neue", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('R', cx, cy + SIZE * 0.02);
+
+  const png = c.toDataURL('image/png');
+  document.querySelector('link[rel="apple-touch-icon"]').href = png;
+  document.querySelector('link[rel="icon"]').href = png;
 })();
 </script>
 </body>
