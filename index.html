@@ -82,6 +82,41 @@
   }
   .btn-tab-add:active { opacity: 0.7; }
 
+  .main-tab-wrap {
+    display: flex; gap: 4px;
+    background: rgba(26,20,16,0.07);
+    border-radius: 12px; padding: 3px; margin-bottom: 16px;
+  }
+  .main-tab-item {
+    flex: 1; text-align: center; padding: 9px 8px; border-radius: 9px;
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.03em;
+    color: var(--ink-faint); cursor: pointer; user-select: none;
+    transition: background 0.18s, color 0.18s;
+  }
+  .main-tab-item.active {
+    background: var(--paper); color: var(--accent);
+    font-weight: 500; box-shadow: 0 1px 4px rgba(26,20,16,0.1);
+  }
+
+  .rule-hint {
+    font-family: 'DM Mono', monospace; font-size: 12px; color: var(--ink-mid);
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 12px; line-height: 1.5;
+  }
+  .compare-crown { margin-right: 4px; }
+
+  .cat-manager-list { list-style: none; margin-bottom: 4px; }
+  .cat-manager-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid var(--border); gap: 10px;
+    font-family: 'DM Mono', monospace; font-size: 13px; color: var(--ink);
+  }
+  .cat-manager-item:last-child { border-bottom: none; }
+  .cat-manager-empty {
+    padding: 10px 0; font-family: 'DM Mono', monospace; font-size: 11px;
+    color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
   .card {
     background: var(--paper); border: 1px solid var(--border);
     border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 16px;
@@ -300,6 +335,14 @@
   <h1>回饋 <em>帳本</em></h1>
 </header>
 
+<div class="main-tab-wrap" id="mainTabWrap">
+  <div class="main-tab-item active" data-page="log">消費紀錄</div>
+  <div class="main-tab-item" data-page="rules">優惠管理</div>
+  <div class="main-tab-item" data-page="compare">優惠比較</div>
+</div>
+
+<div id="pageLog">
+
 <div class="tab-wrap">
   <div class="tab-track" id="tabTrack"></div>
   <button class="btn-tab-add" onclick="addCard()" title="新增卡片">＋</button>
@@ -371,13 +414,7 @@
     <div class="card-head"><h2>新增一筆</h2></div>
     <div class="entry-form">
       <input type="text" id="memoInput" placeholder="消費備註（選填）" maxlength="30">
-      <select id="catSelect">
-        <option value="other">分類：其他</option>
-        <option value="food">🍜 餐飲</option>
-        <option value="shop">🛍️ 購物</option>
-        <option value="travel">✈️ 旅遊 / 交通</option>
-        <option value="medical">💊 醫療</option>
-      </select>
+      <select id="catSelect"></select>
       <input type="number" id="amountInput" placeholder="金額（TWD）" min="1" inputmode="numeric">
       <button class="btn-add" onclick="addEntry()">＋ 記帳</button>
     </div>
@@ -398,29 +435,171 @@
 
 <div class="total-bar" id="totalBar"></div>
 
+</div>
+
+<div id="pageRules" style="display:none">
+
+  <div class="card">
+    <div class="card-body">
+      <div class="card-head"><h2>消費分類管理</h2></div>
+      <ul class="cat-manager-list" id="categoryManagerList"></ul>
+      <div class="entry-form" style="margin-top:10px;">
+        <input type="text" id="newCategoryInput" placeholder="新增分類，例如：日用品" maxlength="16">
+        <button class="btn-add" onclick="addCategory()">＋ 新增分類</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="card-head"><h2>新增優惠</h2></div>
+      <div class="entry-form">
+        <input type="text" id="ruleCardInput" list="cardNameList" placeholder="卡片名稱，例如：玉山 Pi 卡" maxlength="20">
+        <datalist id="cardNameList"></datalist>
+        <select id="ruleCatSelect"></select>
+        <input type="text" id="ruleKwInput" placeholder="關鍵字（選填，例如：netflix）" maxlength="20">
+        <input type="number" id="rulePctInput" placeholder="回饋 %（例如 3）" min="0" step="0.1" inputmode="decimal">
+        <input type="number" id="ruleLimitInput" placeholder="回饋上限 $（選填，留空＝無上限）" min="0" inputmode="numeric">
+        <button class="btn-add" onclick="addRule()">＋ 新增優惠</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rulesContainer"></div>
+
+</div>
+
+<div id="pageCompare" style="display:none">
+  <div class="card">
+    <div class="card-body">
+      <div class="card-head"><h2>找出最佳卡片</h2></div>
+      <div class="entry-form">
+        <select id="compareCat"></select>
+        <input type="text" id="compareKeyword" placeholder="關鍵字（選填，例如：日本 / netflix / 超市）" maxlength="30">
+        <button class="btn-add" onclick="renderCompare()">🔍 比較優惠</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" id="compareResultsCard" style="display:none">
+    <div class="log-header"><h2>推薦排序</h2></div>
+    <ul class="log-list" id="compareResults"></ul>
+  </div>
+  <div class="log-empty" id="compareEmpty" style="display:none">尚無符合的優惠規則，請先到「優惠管理」新增</div>
+</div>
+
 <footer>資料儲存於本機 · 不上傳任何伺服器</footer>
 
 <script>
 const STORAGE_KEY = 'cashback_v2';
 const CIRC = 2 * Math.PI * 78;
-const CAT_LABELS = { food:'餐飲', shop:'購物', travel:'旅遊/交通', medical:'醫療', other:'其他' };
 const BADGE_COLORS = [
   ['#f2e4df','#c84b2f'], ['#e8f0fe','#2a4cb0'], ['#e8f5ef','#1a6040'],
   ['#fef3e2','#a06000'], ['#f0e8fe','#6030b0'], ['#e8f8fe','#0a6080']
 ];
+const BASE_CAT_COLORS = {
+  '餐飲': ['#fef3e2','#a06000'],
+  '購物': ['#e8f0fe','#2a4cb0'],
+  '旅遊/交通': ['#e8f5ef','#1a6040'],
+  '醫療': ['#fce8e8','#a03020'],
+  '其他': ['#f0ece8','#6a5a50'],
+};
+const EXTRA_CAT_PALETTE = [
+  ['#f0e8fe','#6030b0'], ['#e8f8fe','#0a6080'], ['#fef0f5','#b02060'],
+  ['#f5f8e8','#5a7010'], ['#e8f4f8','#0a6890']
+];
+const LEGACY_CAT_LABELS = { food:'餐飲', shop:'購物', travel:'旅遊/交通', medical:'醫療', other:'其他' };
 
-let state = { cards: [], entries: [], activeCardId: null };
+let state = { cards: [], entries: [], rules: [], categories: [], activeCardId: null };
 let filterCardId = 'all';
 
 function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
 function load() {
   try { const r = localStorage.getItem(STORAGE_KEY); if (r) state = JSON.parse(r); } catch(e) {}
-  if (!state.cards)   state.cards   = [];
-  if (!state.entries) state.entries = [];
+  if (!state.cards)      state.cards      = [];
+  if (!state.entries)    state.entries    = [];
+  if (!state.rules)      state.rules      = [];
+  if (!state.categories) state.categories = ['餐飲','購物','旅遊/交通','醫療','其他'];
+  state.entries.forEach(e => { if (LEGACY_CAT_LABELS[e.category]) e.category = LEGACY_CAT_LABELS[e.category]; });
+  state.rules.forEach(r => { if (LEGACY_CAT_LABELS[r.category]) r.category = LEGACY_CAT_LABELS[r.category]; });
+  state.rules.forEach(r => {
+    if (r.cardId && !r.cardName) {
+      const c = state.cards.find(c => c.id === r.cardId);
+      r.cardName = c ? (c.name || '未命名') : '未命名卡片';
+    }
+    if (!r.cardName) r.cardName = r.cardName || '';
+    delete r.cardId;
+  });
   if (!state.cards.length) state.cards.push(newCardObj('我的信用卡'));
   if (!state.activeCardId || !state.cards.find(c => c.id === state.activeCardId))
     state.activeCardId = state.cards[0].id;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function catLabel(cat) { return cat || '其他'; }
+function catColor(cat) {
+  if (BASE_CAT_COLORS[cat]) return BASE_CAT_COLORS[cat];
+  let h = 0;
+  const s = String(cat || '');
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return EXTRA_CAT_PALETTE[h % EXTRA_CAT_PALETTE.length];
+}
+
+function maxSpendText(limit, percent) {
+  if (!limit || limit <= 0) return '無上限';
+  if (!percent || percent <= 0) return `上限 $${limit.toLocaleString()}`;
+  const maxSpend = Math.ceil(limit / (percent / 100));
+  return `上限 $${limit.toLocaleString()} · 最多可刷 $${maxSpend.toLocaleString()}`;
+}
+
+function categoryOptionsHtml(selected) {
+  const cats = state.categories;
+  let html = cats.map(c => `<option value="${escapeHtml(c)}" ${c === selected ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('');
+  if (selected && !cats.includes(selected)) {
+    html += `<option value="${escapeHtml(selected)}" selected>${escapeHtml(selected)}（未知分類）</option>`;
+  }
+  return html;
+}
+
+function refreshCategorySelects() {
+  ['catSelect', 'compareCat', 'ruleCatSelect'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const prev = el.value;
+    const selected = state.categories.includes(prev) ? prev : (state.categories[0] || '');
+    el.innerHTML = categoryOptionsHtml(selected);
+  });
+}
+
+function renderCategoryManager() {
+  const list = document.getElementById('categoryManagerList');
+  if (!list) return;
+  list.innerHTML = state.categories.length
+    ? state.categories.map(c => `
+        <li class="cat-manager-item">
+          <span>${escapeHtml(c)}</span>
+          <button class="btn-del" data-del-cat="${escapeHtml(c)}">×</button>
+        </li>`).join('')
+    : '<li class="cat-manager-empty">尚無分類，請先新增</li>';
+}
+
+function addCategory() {
+  const input = document.getElementById('newCategoryInput');
+  const name = input.value.trim();
+  if (!name) { input.focus(); return; }
+  if (state.categories.includes(name)) { input.value = ''; return; }
+  state.categories.push(name);
+  input.value = '';
+  save(); renderCategoryManager(); refreshCategorySelects(); renderRules();
+}
+
+function deleteCategory(name) {
+  if (!confirm(`確定要刪除分類「${name}」？已使用此分類的消費紀錄與優惠規則不會被刪除，但會顯示為未知分類。`)) return;
+  state.categories = state.categories.filter(c => c !== name);
+  save(); renderCategoryManager(); refreshCategorySelects(); renderRules(); renderLog();
 }
 
 function newCardObj(name) { return { id: uid(), name, limit: 0, cycleStart: 1 }; }
@@ -528,6 +707,7 @@ function renderLog() {
     const d = new Date(e.ts);
     const ts = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
     const [bg, fg] = badgeColor(e.cardId);
+    const [tbg, tfg] = catColor(e.category);
     const li = document.createElement('li');
     li.className = 'log-item';
     li.innerHTML = `
@@ -535,7 +715,7 @@ function renderLog() {
         <div class="log-memo">${e.memo || '（未填備註）'}</div>
         <div class="log-meta">
           <span>${ts}</span>
-          <span class="log-tag tag-${e.category}">${CAT_LABELS[e.category]||'其他'}</span>
+          <span class="log-tag" style="background:${tbg};color:${tfg}">${catLabel(e.category)}</span>
           <span class="card-badge" style="background:${bg};color:${fg}">${card?card.name:'已刪除'}</span>
         </div>
       </div>
@@ -571,7 +751,177 @@ function renderTotal() {
     </div>`;
 }
 
-function render() { renderTabs(); renderRing(); renderConfig(); renderFilter(); renderLog(); renderTotal(); }
+function render() { renderTabs(); renderRing(); renderConfig(); renderFilter(); renderLog(); renderTotal(); renderRules(); }
+
+function refreshCardNameList() {
+  const dl = document.getElementById('cardNameList');
+  if (!dl) return;
+  const names = new Set();
+  state.cards.forEach(c => names.add(c.name || '未命名'));
+  state.rules.forEach(r => { if (r.cardName) names.add(r.cardName); });
+  dl.innerHTML = Array.from(names).map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+}
+
+function renderRules() {
+  refreshCategorySelects();
+  renderCategoryManager();
+  refreshCardNameList();
+
+  const wrap = document.getElementById('rulesContainer');
+  if (!wrap) return;
+
+  wrap.innerHTML = '';
+  if (!state.rules.length) {
+    wrap.innerHTML = '<div class="log-empty" style="padding:24px;">尚未設定任何優惠，先在上方新增一筆吧</div>';
+    return;
+  }
+  state.rules.forEach(r => {
+    const box = document.createElement('div');
+    box.className = 'card';
+    box.setAttribute('data-rule-box', r.id);
+    box.innerHTML = `
+      <div class="card-body">
+        <div class="card-head">
+          <h2>${escapeHtml(r.cardName || '未命名卡片')}</h2>
+          <button class="btn-del-card" onclick="deleteRule('${r.id}')">刪除</button>
+        </div>
+        <div class="cfg-grid">
+          <div class="field full">
+            <label>卡片名稱</label>
+            <input type="text" list="cardNameList" value="${escapeHtml(r.cardName || '')}" placeholder="卡片名稱，例如：玉山 Pi 卡" oninput="editRule('${r.id}','cardName',this.value)">
+          </div>
+          <div class="field full">
+            <label>消費分類</label>
+            <select onchange="editRule('${r.id}','category',this.value)">
+              ${categoryOptionsHtml(r.category)}
+            </select>
+          </div>
+          <div class="field full">
+            <label>關鍵字（選填）</label>
+            <input type="text" value="${escapeHtml(r.keyword || '')}" placeholder="例如：netflix、日本" oninput="editRule('${r.id}','keyword',this.value)">
+          </div>
+          <div class="field">
+            <label>回饋 %</label>
+            <input type="number" step="0.1" min="0" value="${r.percent}" oninput="editRule('${r.id}','percent',this.value)">
+          </div>
+          <div class="field">
+            <label>回饋上限 $</label>
+            <input type="number" min="0" value="${r.limit || ''}" placeholder="無上限" oninput="editRule('${r.id}','limit',this.value)">
+          </div>
+          <div class="field full">
+            <label>可刷額度</label>
+            <div class="rule-hint" data-rule-hint="${r.id}">${maxSpendText(r.limit, r.percent)}</div>
+          </div>
+        </div>
+      </div>`;
+    wrap.appendChild(box);
+  });
+}
+
+function addRule() {
+  const cardEl = document.getElementById('ruleCardInput');
+  const catEl  = document.getElementById('ruleCatSelect');
+  const kwEl   = document.getElementById('ruleKwInput');
+  const pctEl  = document.getElementById('rulePctInput');
+  const limEl  = document.getElementById('ruleLimitInput');
+  const cardName = cardEl.value.trim();
+  const percent = parseFloat(pctEl.value);
+  if (!cardName) {
+    cardEl.focus(); cardEl.style.borderColor = 'var(--accent)';
+    setTimeout(() => cardEl.style.borderColor = '', 1200); return;
+  }
+  if (!catEl.value) { alert('請先在上方新增至少一個消費分類'); return; }
+  if (!percent || percent <= 0) {
+    pctEl.focus(); pctEl.style.borderColor = 'var(--accent)';
+    setTimeout(() => pctEl.style.borderColor = '', 1200); return;
+  }
+  state.rules.push({
+    id: uid(), cardName,
+    category: catEl.value,
+    keyword: kwEl.value.trim(),
+    percent,
+    limit: parseFloat(limEl.value) || 0
+  });
+  kwEl.value = ''; pctEl.value = ''; limEl.value = '';
+  save(); renderRules();
+}
+
+function editRule(id, field, value) {
+  const r = state.rules.find(x => x.id === id);
+  if (!r) return;
+  if (field === 'percent') r.percent = parseFloat(value) || 0;
+  else if (field === 'limit') r.limit = parseFloat(value) || 0;
+  else if (field === 'category') r.category = value;
+  else if (field === 'keyword') r.keyword = value.trim();
+  else if (field === 'cardName') r.cardName = value;
+  save();
+  if (field === 'percent' || field === 'limit') {
+    const hintEl = document.querySelector(`[data-rule-hint="${id}"]`);
+    if (hintEl) hintEl.textContent = maxSpendText(r.limit, r.percent);
+  }
+  if (field === 'cardName') {
+    const h2 = document.querySelector(`[data-rule-box="${id}"] h2`);
+    if (h2) h2.textContent = value.trim() || '未命名卡片';
+  }
+}
+
+function deleteRule(id) {
+  state.rules = state.rules.filter(r => r.id !== id);
+  save(); renderRules();
+}
+
+function renderCompare() {
+  const cat = document.getElementById('compareCat').value;
+  const kwRaw = document.getElementById('compareKeyword').value.trim().toLowerCase();
+  const pool = state.rules.filter(r => r.category === cat);
+  let matched = pool.map(r => {
+    const isSpecific = !!(kwRaw && r.keyword &&
+      (r.keyword.toLowerCase().includes(kwRaw) || kwRaw.includes(r.keyword.toLowerCase())));
+    return { r, isSpecific };
+  });
+  matched.sort((a, b) => (b.isSpecific - a.isSpecific) || (b.r.percent - a.r.percent));
+
+  const resultsCard = document.getElementById('compareResultsCard');
+  const emptyEl = document.getElementById('compareEmpty');
+  const list = document.getElementById('compareResults');
+  list.innerHTML = '';
+
+  if (!matched.length) {
+    resultsCard.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  resultsCard.style.display = 'block';
+  matched.forEach(({ r, isSpecific }, i) => {
+    const [tbg, tfg] = catColor(r.category);
+    const li = document.createElement('li');
+    li.className = 'log-item';
+    li.innerHTML = `
+      <div class="log-item-left">
+        <div class="log-memo">${i === 0 ? '<span class="compare-crown">🏆</span>' : ''}${escapeHtml(r.cardName || '未命名卡片')}</div>
+        <div class="log-meta">
+          <span class="log-tag" style="background:${tbg};color:${tfg}">${catLabel(r.category)}</span>
+          ${r.keyword ? `<span${isSpecific ? ' style="color:var(--accent);font-weight:600;"' : ''}>「${escapeHtml(r.keyword)}」</span>` : ''}
+          <span>${maxSpendText(r.limit, r.percent)}</span>
+        </div>
+      </div>
+      <div class="log-amount">${r.percent}%</div>`;
+    list.appendChild(li);
+  });
+}
+
+document.querySelectorAll('.main-tab-item').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('.main-tab-item').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+    const page = el.dataset.page;
+    document.getElementById('pageLog').style.display     = page === 'log'     ? '' : 'none';
+    document.getElementById('pageRules').style.display    = page === 'rules'  ? '' : 'none';
+    document.getElementById('pageCompare').style.display  = page === 'compare'? '' : 'none';
+    if (page === 'rules') renderRules();
+  });
+});
 
 function addCard() {
   const card = newCardObj('新卡片');
@@ -594,7 +944,7 @@ function deleteCard() {
 
 function addEntry() {
   const memo   = document.getElementById('memoInput').value.trim();
-  const cat    = document.getElementById('catSelect').value;
+  const cat    = document.getElementById('catSelect').value || '其他';
   const amount = parseFloat(document.getElementById('amountInput').value);
   if (!amount || amount <= 0) {
     const el = document.getElementById('amountInput');
@@ -604,7 +954,6 @@ function addEntry() {
   state.entries.push({ id: uid(), cardId: state.activeCardId, memo, category: cat, amount, ts: Date.now() });
   document.getElementById('memoInput').value   = '';
   document.getElementById('amountInput').value = '';
-  document.getElementById('catSelect').value   = 'other';
   save(); render();
 }
 
@@ -634,6 +983,11 @@ document.getElementById('cycleStart').addEventListener('input', e => {
   save(); renderRing();
 });
 document.getElementById('amountInput').addEventListener('keydown', e => { if (e.key==='Enter') addEntry(); });
+document.getElementById('categoryManagerList').addEventListener('click', e => {
+  const btn = e.target.closest('[data-del-cat]');
+  if (btn) deleteCategory(btn.dataset.delCat);
+});
+document.getElementById('newCategoryInput').addEventListener('keydown', e => { if (e.key==='Enter') addCategory(); });
 
 load(); render();
 setInterval(renderRing, 60000);
