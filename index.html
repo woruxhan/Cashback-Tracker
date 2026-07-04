@@ -441,6 +441,18 @@
 
   <div class="card">
     <div class="card-body">
+      <div class="card-head"><h2>優惠設定匯出入</h2></div>
+      <div class="entry-form">
+        <button class="btn-add" onclick="exportRulesCsv()">⬇️ 匯出 CSV</button>
+        <button class="btn-add" onclick="document.getElementById('importRulesFile').click()">⬆️ 匯入 CSV（覆蓋現有資料）</button>
+        <input type="file" id="importRulesFile" accept=".csv" style="display:none">
+      </div>
+      <div class="rule-hint" style="margin-top:10px;">匯出後可用 Excel / Numbers 編輯，改好存成 CSV 再匯入即可。匯入會直接覆蓋現有的優惠規則與分類清單，請先匯出備份一份。</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
       <div class="card-head"><h2>消費分類管理</h2></div>
       <ul class="cat-manager-list" id="categoryManagerList"></ul>
       <div class="entry-form" style="margin-top:10px;">
@@ -458,8 +470,9 @@
         <datalist id="cardNameList"></datalist>
         <select id="ruleCatSelect"></select>
         <input type="text" id="ruleKwInput" placeholder="關鍵字（選填，例如：netflix）" maxlength="20">
-        <input type="number" id="rulePctInput" placeholder="回饋 %（例如 3）" min="0" step="0.1" inputmode="decimal">
-        <input type="number" id="ruleLimitInput" placeholder="回饋上限 $（選填，留空＝無上限）" min="0" inputmode="numeric">
+        <input type="number" id="ruleBaseInput" placeholder="基礎回饋 %（無上限，例如 1）" min="0" step="0.1" inputmode="decimal">
+        <input type="number" id="ruleBonusInput" placeholder="加碼回饋 %（選填，例如 2.5）" min="0" step="0.1" inputmode="decimal">
+        <input type="number" id="ruleBonusLimitInput" placeholder="加碼上限 $（選填）" min="0" inputmode="numeric">
         <button class="btn-add" onclick="addRule()">＋ 新增優惠</button>
       </div>
     </div>
@@ -529,6 +542,14 @@ function load() {
     }
     if (!r.cardName) r.cardName = r.cardName || '';
     delete r.cardId;
+    if (r.basePercent === undefined) {
+      if (r.limit && r.limit > 0) {
+        r.basePercent = 0; r.bonusPercent = r.percent || 0; r.bonusLimit = r.limit;
+      } else {
+        r.basePercent = r.percent || 0; r.bonusPercent = 0; r.bonusLimit = 0;
+      }
+      delete r.percent; delete r.limit;
+    }
   });
   if (!state.cards.length) state.cards.push(newCardObj('我的信用卡'));
   if (!state.activeCardId || !state.cards.find(c => c.id === state.activeCardId))
@@ -548,11 +569,25 @@ function catColor(cat) {
   return EXTRA_CAT_PALETTE[h % EXTRA_CAT_PALETTE.length];
 }
 
-function maxSpendText(limit, percent) {
-  if (!limit || limit <= 0) return '無上限';
-  if (!percent || percent <= 0) return `上限 $${limit.toLocaleString()}`;
-  const maxSpend = Math.ceil(limit / (percent / 100));
-  return `上限 $${limit.toLocaleString()} · 最多可刷 $${maxSpend.toLocaleString()}`;
+function ruleTotalPercent(r) {
+  return (r.basePercent || 0) + (r.bonusPercent || 0);
+}
+
+function ruleDetailText(r) {
+  const base = r.basePercent || 0;
+  const bonus = r.bonusPercent || 0;
+  const limit = r.bonusLimit || 0;
+  const parts = [];
+  if (base > 0) parts.push(`基礎 ${base}%（無上限）`);
+  if (bonus > 0) {
+    if (limit > 0) {
+      const maxSpend = Math.ceil(limit / (bonus / 100));
+      parts.push(`加碼 ${bonus}%（上限 $${limit.toLocaleString()} · 約可加碼刷 $${maxSpend.toLocaleString()}）`);
+    } else {
+      parts.push(`加碼 ${bonus}%（無上限）`);
+    }
+  }
+  return parts.length ? parts.join(' + ') : '尚未設定回饋';
 }
 
 function categoryOptionsHtml(selected) {
@@ -762,6 +797,124 @@ function refreshCardNameList() {
   dl.innerHTML = Array.from(names).map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
 }
 
+function csvField(v) {
+  v = String(v ?? '');
+  if (/[",\n\r]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+  return v;
+}
+function toCsv(rows) {
+  return rows.map(r => r.map(csvField).join(',')).join('\r\n');
+}
+function parseCsv(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') { if (text[i+1] === '"') { field += '"'; i++; } else inQuotes = false; }
+      else field += c;
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r') { /* skip */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(f => f !== ''));
+}
+
+function exportRulesCsv() {
+  const rows = [['類型', '卡片名稱', '消費分類', '關鍵字', '基礎回饋%', '加碼回饋%', '加碼上限']];
+  state.categories.forEach(c => rows.push(['分類', '', c, '', '', '', '']));
+  state.rules.forEach(r => rows.push(['優惠', r.cardName || '', r.category || '', r.keyword || '', r.basePercent || '', r.bonusPercent || '', r.bonusLimit || '']));
+  const csv = '\uFEFF' + toCsv(rows);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `回饋帳本_優惠設定_${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function importRulesCsv(text) {
+  let rows;
+  try { rows = parseCsv(text); } catch (e) { alert('檔案讀取失敗，請確認是有效的 CSV 檔'); return; }
+  if (!rows.length) { alert('檔案是空的或格式無法辨識'); return; }
+  let start = 0;
+  let legacy = false;
+  if (rows[0][0] === '類型') {
+    start = 1;
+    legacy = !rows[0].includes('基礎回饋%');
+  }
+
+  const newCategories = [];
+  const newRules = [];
+  for (let i = start; i < rows.length; i++) {
+    const row = rows[i];
+    const type = row[0];
+    const cardName = row[1];
+    const category = row[2];
+    const keyword = row[3];
+    const catTrim = (category || '').trim();
+    if (type === '分類') {
+      if (catTrim && !newCategories.includes(catTrim)) newCategories.push(catTrim);
+      continue;
+    }
+    if (type !== '優惠') continue;
+
+    let basePercent, bonusPercent, bonusLimit;
+    if (legacy) {
+      const percent = parseFloat(row[4]);
+      const limit = parseFloat(row[5]) || 0;
+      if (!catTrim || !percent || percent <= 0) continue;
+      if (limit > 0) { basePercent = 0; bonusPercent = percent; bonusLimit = limit; }
+      else { basePercent = percent; bonusPercent = 0; bonusLimit = 0; }
+    } else {
+      basePercent = parseFloat(row[4]) || 0;
+      bonusPercent = parseFloat(row[5]) || 0;
+      bonusLimit = parseFloat(row[6]) || 0;
+      if (!catTrim || (basePercent <= 0 && bonusPercent <= 0)) continue;
+    }
+    newRules.push({
+      id: uid(),
+      cardName: (cardName || '').trim() || '未命名卡片',
+      category: catTrim,
+      keyword: (keyword || '').trim(),
+      basePercent, bonusPercent, bonusLimit
+    });
+    if (!newCategories.includes(catTrim)) newCategories.push(catTrim);
+  }
+
+  if (!newRules.length && !newCategories.length) {
+    alert('沒有讀到任何有效資料，請確認檔案格式（第一欄需為「分類」或「優惠」）');
+    return;
+  }
+  if (!confirm(`即將覆蓋現有的優惠規則與分類清單：\n分類 ${newCategories.length} 筆、優惠規則 ${newRules.length} 筆。\n確定要匯入嗎？`)) return;
+
+  state.categories = newCategories.length ? newCategories : state.categories;
+  state.rules = newRules;
+  save();
+  renderRules();
+}
+
+document.getElementById('importRulesFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => importRulesCsv(String(reader.result));
+  reader.onerror = () => alert('檔案讀取失敗');
+  reader.readAsText(file, 'utf-8');
+  e.target.value = '';
+});
+
 function renderRules() {
   refreshCategorySelects();
   renderCategoryManager();
@@ -801,16 +954,20 @@ function renderRules() {
             <input type="text" value="${escapeHtml(r.keyword || '')}" placeholder="例如：netflix、日本" oninput="editRule('${r.id}','keyword',this.value)">
           </div>
           <div class="field">
-            <label>回饋 %</label>
-            <input type="number" step="0.1" min="0" value="${r.percent}" oninput="editRule('${r.id}','percent',this.value)">
+            <label>基礎回饋 %（無上限）</label>
+            <input type="number" step="0.1" min="0" value="${r.basePercent || ''}" placeholder="0" oninput="editRule('${r.id}','basePercent',this.value)">
           </div>
           <div class="field">
-            <label>回饋上限 $</label>
-            <input type="number" min="0" value="${r.limit || ''}" placeholder="無上限" oninput="editRule('${r.id}','limit',this.value)">
+            <label>加碼回饋 %（選填）</label>
+            <input type="number" step="0.1" min="0" value="${r.bonusPercent || ''}" placeholder="0" oninput="editRule('${r.id}','bonusPercent',this.value)">
           </div>
           <div class="field full">
-            <label>可刷額度</label>
-            <div class="rule-hint" data-rule-hint="${r.id}">${maxSpendText(r.limit, r.percent)}</div>
+            <label>加碼上限 $（選填）</label>
+            <input type="number" min="0" value="${r.bonusLimit || ''}" placeholder="無上限" oninput="editRule('${r.id}','bonusLimit',this.value)">
+          </div>
+          <div class="field full">
+            <label>合計 ${ruleTotalPercent(r)}%</label>
+            <div class="rule-hint" data-rule-hint="${r.id}">${ruleDetailText(r)}</div>
           </div>
         </div>
       </div>`;
@@ -819,45 +976,51 @@ function renderRules() {
 }
 
 function addRule() {
-  const cardEl = document.getElementById('ruleCardInput');
-  const catEl  = document.getElementById('ruleCatSelect');
-  const kwEl   = document.getElementById('ruleKwInput');
-  const pctEl  = document.getElementById('rulePctInput');
-  const limEl  = document.getElementById('ruleLimitInput');
+  const cardEl   = document.getElementById('ruleCardInput');
+  const catEl    = document.getElementById('ruleCatSelect');
+  const kwEl     = document.getElementById('ruleKwInput');
+  const baseEl   = document.getElementById('ruleBaseInput');
+  const bonusEl  = document.getElementById('ruleBonusInput');
+  const bLimEl   = document.getElementById('ruleBonusLimitInput');
   const cardName = cardEl.value.trim();
-  const percent = parseFloat(pctEl.value);
+  const basePercent  = parseFloat(baseEl.value) || 0;
+  const bonusPercent = parseFloat(bonusEl.value) || 0;
   if (!cardName) {
     cardEl.focus(); cardEl.style.borderColor = 'var(--accent)';
     setTimeout(() => cardEl.style.borderColor = '', 1200); return;
   }
   if (!catEl.value) { alert('請先在上方新增至少一個消費分類'); return; }
-  if (!percent || percent <= 0) {
-    pctEl.focus(); pctEl.style.borderColor = 'var(--accent)';
-    setTimeout(() => pctEl.style.borderColor = '', 1200); return;
+  if (basePercent <= 0 && bonusPercent <= 0) {
+    baseEl.focus(); baseEl.style.borderColor = 'var(--accent)';
+    setTimeout(() => baseEl.style.borderColor = '', 1200); return;
   }
   state.rules.push({
     id: uid(), cardName,
     category: catEl.value,
     keyword: kwEl.value.trim(),
-    percent,
-    limit: parseFloat(limEl.value) || 0
+    basePercent,
+    bonusPercent,
+    bonusLimit: parseFloat(bLimEl.value) || 0
   });
-  kwEl.value = ''; pctEl.value = ''; limEl.value = '';
+  kwEl.value = ''; baseEl.value = ''; bonusEl.value = ''; bLimEl.value = '';
   save(); renderRules();
 }
 
 function editRule(id, field, value) {
   const r = state.rules.find(x => x.id === id);
   if (!r) return;
-  if (field === 'percent') r.percent = parseFloat(value) || 0;
-  else if (field === 'limit') r.limit = parseFloat(value) || 0;
+  if (field === 'basePercent') r.basePercent = parseFloat(value) || 0;
+  else if (field === 'bonusPercent') r.bonusPercent = parseFloat(value) || 0;
+  else if (field === 'bonusLimit') r.bonusLimit = parseFloat(value) || 0;
   else if (field === 'category') r.category = value;
   else if (field === 'keyword') r.keyword = value.trim();
   else if (field === 'cardName') r.cardName = value;
   save();
-  if (field === 'percent' || field === 'limit') {
+  if (field === 'basePercent' || field === 'bonusPercent' || field === 'bonusLimit') {
     const hintEl = document.querySelector(`[data-rule-hint="${id}"]`);
-    if (hintEl) hintEl.textContent = maxSpendText(r.limit, r.percent);
+    if (hintEl) hintEl.textContent = ruleDetailText(r);
+    const labelEl = hintEl ? hintEl.previousElementSibling : null;
+    if (labelEl) labelEl.textContent = `合計 ${ruleTotalPercent(r)}%`;
   }
   if (field === 'cardName') {
     const h2 = document.querySelector(`[data-rule-box="${id}"] h2`);
@@ -879,7 +1042,7 @@ function renderCompare() {
       (r.keyword.toLowerCase().includes(kwRaw) || kwRaw.includes(r.keyword.toLowerCase())));
     return { r, isSpecific };
   });
-  matched.sort((a, b) => (b.isSpecific - a.isSpecific) || (b.r.percent - a.r.percent));
+  matched.sort((a, b) => (b.isSpecific - a.isSpecific) || (ruleTotalPercent(b.r) - ruleTotalPercent(a.r)));
 
   const resultsCard = document.getElementById('compareResultsCard');
   const emptyEl = document.getElementById('compareEmpty');
@@ -903,10 +1066,10 @@ function renderCompare() {
         <div class="log-meta">
           <span class="log-tag" style="background:${tbg};color:${tfg}">${catLabel(r.category)}</span>
           ${r.keyword ? `<span${isSpecific ? ' style="color:var(--accent);font-weight:600;"' : ''}>「${escapeHtml(r.keyword)}」</span>` : ''}
-          <span>${maxSpendText(r.limit, r.percent)}</span>
+          <span>${ruleDetailText(r)}</span>
         </div>
       </div>
-      <div class="log-amount">${r.percent}%</div>`;
+      <div class="log-amount">${ruleTotalPercent(r)}%</div>`;
     list.appendChild(li);
   });
 }
